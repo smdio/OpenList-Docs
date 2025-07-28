@@ -80,7 +80,27 @@ After modifying the configuration file, restart OpenList for changes to take eff
     "max_size": 50,
     "max_backups": 30,
     "max_age": 28,
-    "compress": false
+    "compress": false,
+    "filter": {
+      "enable": false,
+      "filters": [
+        {
+          "cidr": "",
+          "path": "/ping",
+          "method": ""
+        },
+        {
+          "cidr": "",
+          "path": "",
+          "method": "HEAD"
+        },
+        {
+          "cidr": "",
+          "path": "/dav/",
+          "method": "PROPFIND"
+        }
+      ]
+    }
   },
   "delayed_start": 0,
   "max_connections": 0,
@@ -214,27 +234,36 @@ CDN 地址，如果要使用 CDN，可以设置该字段，`$version` 会被动�
 - https://github.com/OpenListTeam/Openlist-Frontend
 
 ::: en
-Thus it is possible to use any npm or ~~GitHub~~ CDN path for this field. For example:
+Thus it is possible to use any npm or ~~GitHub~~ CDN path for this field. Do not include the slash `/` at the end of the address. For example:
 :::
 ::: zh-CN
-所以你可以使用任何 npm 或 ~~GitHub~~ CDN 作为路径，例如：
+所以你可以使用任何 npm 或 ~~GitHub~~ CDN 作为路径，结尾不要携带 `/`，例如：
 :::
 
-- `https://registry.npmmirror.com/@openlist-frontend/openlist-frontend/$version/files/dist/`
-- `https://unpkg.com/@openlist-frontend/openlist-frontend@$version/dist/`
-- `https://cdn.jsdelivr.net/npm/@openlist-frontend/openlist-frontend@$version/dist/`
-- `https://fastly.jsdelivr.net/npm/@openlist-frontend/openlist-frontend@$version/dist/`
-- `https://gcore.jsdelivr.net/npm/@openlist-frontend/openlist-frontend@$version/dist/`
-- `https://jsd.onmicrosoft.cn/npm/@openlist-frontend/openlist-frontend@$version/dist/`
+- `https://registry.npmmirror.com/@openlist-frontend/openlist-frontend/$version/files/dist`
+- `https://unpkg.com/@openlist-frontend/openlist-frontend@$version/dist`
+- `https://cdn.jsdelivr.net/npm/@openlist-frontend/openlist-frontend@$version/dist`
+- `https://fastly.jsdelivr.net/npm/@openlist-frontend/openlist-frontend@$version/dist`
+- `https://gcore.jsdelivr.net/npm/@openlist-frontend/openlist-frontend@$version/dist`
+- `https://jsd.onmicrosoft.cn/npm/@openlist-frontend/openlist-frontend@$version/dist`
 
-- ~~`https://cdn.jsdelivr.net/gh/OpenListTeam/OpenList-Frontend@$version/dist/`~~
-- ~~`https://jsd.onmicrosoft.cn/gh/OpenListTeam/OpenList-Frontend@$version/dist/`~~
+- ~~`https://cdn.jsdelivr.net/gh/OpenListTeam/OpenList-Frontend@$version/dist`~~
+- ~~`https://jsd.onmicrosoft.cn/gh/OpenListTeam/OpenList-Frontend@$version/dist`~~
 
 ::: en
-Keep empty to use dist resources embedded in the program.
+::: tip
+If you are using the lite version, please add `/lite` to the end of the URL. For example: `https://cdn.jsdelivr.net/gh/OpenListTeam/OpenList-Frontend@$version/dist/lite`
 :::
 ::: zh-CN
-您也可以将其设置为空以使用程序内置 dist。
+::: tip
+如果您使用 Lite 版本，请在地址后面添加 `/lite` 目录，如：`https://cdn.jsdelivr.net/npm/@openlist-frontend/openlist-frontend@$version/dist/lite`。
+:::
+
+::: en
+Keep empty to use dist resources embedded in the program by default.
+:::
+::: zh-CN
+默认情况下，您可以将其设置为空以使用程序内置 dist。
 :::
 
 #### CDN for Beta version { lang="en" }
@@ -684,13 +713,44 @@ The log configuration. Set this field to save detailed logs of disable.
 ```json
   "log": {
     "enable": true,					// Whether OpenList should store logs
-    "name": "data\\log\\log.log",	//The path and name of the log file
-    "max_size": 10,					//the maximum size of a single log file, in MB. After reaching the specified size, the file will be automatically split.
-    "max_backups": 5,				//the number of log backups to keep. Old backups will be deleted automatically when the limit is exceeded.
-    "max_age": 28,					//The maximum number of days preserved in the log file, the log file that exceeds the number of days will be deleted
-    "compress": false				//Whether to enable log file compression functions. After compression, the file size can be reduced, but you need to decompress when viewing, and the default is to close the state false
+    "name": "data\\log\\log.log",	// The path and name of the log file
+    "max_size": 10,					// the maximum size of a single log file, in MB. After reaching the specified size, the file will be automatically split.
+    "max_backups": 5,				// the number of log backups to keep. Old backups will be deleted automatically when the limit is exceeded.
+    "max_age": 28,					// The maximum number of days preserved in the log file, the log file that exceeds the number of days will be deleted
+    "compress": false,			// Whether to enable log file compression functions. After compression, the file size can be reduced, but you need to decompress when viewing, and the default is to close the state false
+    "filter": {             // skip some logs output, not enable by default
+      "enable": false,
+      "filters": [            // preset example
+        {
+          "cidr": "",
+          "path": "/ping",    // Health check
+          "method": ""
+        },
+        {
+          "cidr": "",
+          "path": "",
+          "method": "HEAD"    // HEAD request
+        },
+        {                     // WebDav metadata
+          "cidr": "",
+          "path": "/dav/",
+          "method": "PROPFIND"
+        }
+      ]
   },
 ```
+
+Each filter acts as the following object:
+
+```json
+{
+  "cidr": "",
+  "path": "", // http path，If it starts with“/”, it is an absolute path; if it doesn't start with“/”, it is a relative path
+  "method": "" // HTTP/webdav method, in uppercase
+}
+```
+
+Take note of the startup log to confirm the load, as detailed in the source code `server/middlewares/filtered_logger.go`.
 
 :::
 
@@ -699,14 +759,46 @@ The log configuration. Set this field to save detailed logs of disable.
 
 ```json
   "log": {
-    "enable": true,					//开启日志记录功能，默认为开启状态 true
-    "name": "data\\log\\log.log",	//日志文件的路径和名称
-    "max_size": 10,					//单个日志文件的最大大小，单位为 MB。达到指定大小后会自动切分文件
-    "max_backups": 5,				//保留的日志备份数量，超过数量会自动删除旧的备份
-    "max_age": 28,					//日志文件保存的最大天数，超过天数的日志文件会被删除
-    "compress": false				//是否启用日志文件压缩功能。压缩后可以减小文件大小，但查看时需要解压缩，默认为关闭状态 false
+    "enable": true,					// 开启日志记录功能，默认为开启状态 true
+    "name": "data\\log\\log.log",	// 日志文件的路径和名称
+    "max_size": 10,					// 单个日志文件的最大大小，单位为 MB。达到指定大小后会自动切分文件
+    "max_backups": 5,				// 保留的日志备份数量，超过数量会自动删除旧的备份
+    "max_age": 28,					// 日志文件保存的最大天数，超过天数的日志文件会被删除
+    "compress": false,			// 是否启用日志文件压缩功能。压缩后可以减小文件大小，但查看时需要解压缩，默认为关闭状态 false
+    "filter": {             // 按条件过滤日志功能，默认不开启
+      "enable": false,
+      "filters": [            // 预设例子
+        {
+          "cidr": "",
+          "path": "/ping",    // 健康检查
+          "method": ""
+        },
+        {
+          "cidr": "",
+          "path": "",
+          "method": "HEAD"    // HEAD 请求
+        },
+        {                     // WebDav 元数据
+          "cidr": "",
+          "path": "/dav/",
+          "method": "PROPFIND"
+        }
+      ]
+    }
   },
 ```
+
+过滤器每行为如下对象：
+
+```json
+{
+  "cidr": "",
+  "path": "", // http path，如果 / 开头则是绝对路径，没有 / 开头则是相对路径
+  "method": "" // http/webdav 方法，记得大写
+}
+```
+
+注意查看启动日志以确认加载情况，具体实现详见源代码 `server/middlewares/filtered_logger.go`.
 
 :::
 
